@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: veltra-miniapp-demo
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: python -m compileall -q server.py
+    startCommand: python server.py
+    envVars:
+      - key: SITE_HOST
+        value: 0.0.0.0
+      - key: SITE_PORT
+        value: '10000'
+      - key: COOKIE_SECURE
+        value: '1'
+      - key: ENABLE_MANUAL_CORRECTIONS
+        value: '0'
