@@ -36,6 +36,75 @@ MIN_CONFIRMATIONS = max(1,int(os.environ.get('MIN_CONFIRMATIONS','20')))
 USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
 TRANSFER_TOPIC = 'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 DB_LOCK = threading.RLock()
+# Telegram webhook is optional. Keep the bot token only in Render Environment.
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
+TELEGRAM_APP_URL = os.environ.get('TELEGRAM_APP_URL', 'https://veltra-miniapp-demo.onrender.com/').strip()
+TELEGRAM_WEBHOOK_URL = os.environ.get('TELEGRAM_WEBHOOK_URL', 'https://veltra-miniapp-demo.onrender.com/telegram/webhook').strip()
+
+
+def telegram_call(method, payload):
+    if not TELEGRAM_BOT_TOKEN:
+        raise ValueError('Telegram bot is not configured')
+    request = urllib.request.Request(
+        'https://api.telegram.org/bot' + TELEGRAM_BOT_TOKEN + '/' + method,
+        data=json.dumps(payload).encode('utf-8'),
+        headers={'Content-Type': 'application/json'},
+        method='POST',
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:
+        result = json.load(response)
+    if not result.get('ok'):
+        raise ValueError('Telegram API request failed')
+    return result
+
+
+def telegram_webhook_secret():
+    # Deterministic secret: avoids storing a second credential in Render.
+    return hmac.new(TELEGRAM_BOT_TOKEN.encode(), b'veltra-telegram-webhook-v1', hashlib.sha256).hexdigest()
+
+
+def telegram_handle_update(update):
+    message = update.get('message') if isinstance(update, dict) else None
+    if not isinstance(message, dict):
+        return
+    chat = message.get('chat') or {}
+    if chat.get('type') != 'private' or not isinstance(chat.get('id'), int):
+        return
+    command = str(message.get('text') or '').split(' ', 1)[0].split('@', 1)[0]
+    if command not in ('/start', '/help'):
+        return
+    telegram_call('sendMessage', {
+        'chat_id': chat['id'],
+        'text': 'Добро пожаловать в VELTRA! 🚀\\n\\nОткройте демонстрационное приложение кнопкой ниже. Реальные переводы и торговля здесь не подключены.',
+        'reply_markup': {
+            'inline_keyboard': [[{
+                'text': '🚀 Открыть VELTRA',
+                'web_app': {'url': TELEGRAM_APP_URL},
+            }]],
+        },
+    })
+
+
+def telegram_register_webhook():
+    if not TELEGRAM_BOT_TOKEN:
+        print('Telegram bot: disabled (set TELEGRAM_BOT_TOKEN in Render Environment)')
+        return
+    if not TELEGRAM_APP_URL.startswith('https://') or not TELEGRAM_WEBHOOK_URL.startswith('https://'):
+        print('Telegram webhook: invalid HTTPS URL configuration')
+        return
+    try:
+        telegram_call('setWebhook', {
+            'url': TELEGRAM_WEBHOOK_URL,
+            'secret_token': telegram_webhook_secret(),
+            'allowed_updates': ['message'],
+            'drop_pending_updates': False,
+        })
+        print('Telegram webhook registered successfully')
+    except Exception as exc:
+        # Never print exception details: urllib errors may include the tokenized URL.
+        print('Telegram webhook registration failed:', type(exc).__name__)
+
+
 ENABLE_CORRECTIONS = os.environ.get('ENABLE_MANUAL_CORRECTIONS','0') == '1'
 
 
@@ -219,6 +288,17 @@ class Handler(BaseHTTPRequestHandler):
         print('SERVER ERROR:',repr(e)); self.send_json({'error':'Ошибка сервера'},500)
     def route(self,method):
         path=urlparse(self.path).path
+        if path == '/telegram/webhook':
+            if method != 'POST':
+                return self.send_json({'error':'Method not allowed'},405)
+            if not TELEGRAM_BOT_TOKEN:
+                return self.send_json({'error':'Telegram bot not configured'},503)
+            token = self.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
+            if not hmac.compare_digest(token, telegram_webhook_secret()):
+                return self.send_json({'error':'Unauthorized'},403)
+            update = self.load_json()
+            telegram_handle_update(update)
+            return self.send_json({'ok':True})
         if method=='GET' and not path.startswith('/api/'):
             safe=path.lstrip('/') or 'index.html'
             staticroot=(ROOT/'static').resolve();p=(staticroot/safe).resolve()
@@ -418,6 +498,7 @@ def main():
     if RECEIVE_ADDRESS:tron_decode(RECEIVE_ADDRESS)
     if PAYOUT_ADDRESS:tron_decode(PAYOUT_ADDRESS)
     init_db();print(f'VELTRA: http://{HOST}:{PORT} | DB={DB_PATH} | wallet={RECEIVE_ADDRESS or "not set"}')
+    telegram_register_webhook()
     ThreadingHTTPServer((HOST,PORT),Handler).serve_forever()
 
 if __name__=='__main__':main()
