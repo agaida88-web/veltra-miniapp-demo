@@ -25,3 +25,11 @@
 
 Документация Render: https://render.com/docs/free , https://render.com/docs/infrastructure-as-code .
 Документация Telegram: https://core.telegram.org/bots/webapps .
+
+## Ответ бота на /start (Telegram webhook)
+
+В `server.py` добавлен обработчик Telegram webhook. После изменения GitHub дождитесь нового успешного deploy в Render. В Render → veltra-miniapp-demo → Environment добавьте **секретную** переменную `TELEGRAM_BOT_TOKEN` со значением токена из BotFather. Не добавляйте токен в GitHub, README, чат или скриншоты.
+
+По умолчанию адрес мини-приложения — `https://veltra-miniapp-demo.onrender.com/`, адрес webhook — `https://veltra-miniapp-demo.onrender.com/telegram/webhook`. При смене домена укажите `TELEGRAM_APP_URL` и `TELEGRAM_WEBHOOK_URL` в Render → Environment. Сервер при запуске регистрирует webhook через `setWebhook`; секрет webhook автоматически вычисляется из токена, в код и журналы не выводится. После установки токена проверьте в Render Logs строку `Telegram webhook registered successfully`, затем отправьте в личном чате боту `/start` и нажмите кнопку «🚀 Открыть VELTRA».
+
+Если в логах `Telegram webhook registration failed`, проверьте исходящие запросы Render к Telegram API, токен и URL, не публикуя секрет. На бесплатном тарифе Render сервер может засыпать и отвечать с задержкой. Вебхук не осуществляет платежей и не создаёт аккаунты автоматически.
