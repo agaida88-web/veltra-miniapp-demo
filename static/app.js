@@ -7,9 +7,18 @@ const micro = n => Number(n||0)/1e6;
 const stamp = ts => ts ? new Date(Number(ts)*1000).toLocaleString('ru-RU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
 function notice(t,err=false){const x=$('#toast');x.textContent=t;x.className='toast'+(err?' error':'');clearTimeout(notice.timer);notice.timer=setTimeout(()=>x.classList.add('hidden'),4800)}
 async function api(path,body,method){const opts={method:method|| (body===undefined?'GET':'POST'),credentials:'same-origin',headers:{'Accept':'application/json'}};if(body!==undefined){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body);if(S.csrf)opts.headers['X-CSRF-Token']=S.csrf}const response=await fetch(path,opts);let data;try{data=await response.json()}catch{throw Error('Нет ответа сервера')}if(!response.ok)throw Error(data.error||'Не удалось выполнить запрос');return data}
-function pageMode(mode){$$('.page').forEach(x=>x.classList.add('hidden'));const id=({landing:'landingPage',auth:'authPage',app:'appPage',reset:'resetPage'})[mode];$('#'+id).classList.remove('hidden');$('#headerLogin').classList.toggle('hidden',mode==='app');$('#headerLogout').classList.toggle('hidden',mode!=='app');$('#desktopLinks').classList.toggle('hidden',mode==='app');document.body.classList.toggle('signed-in',mode==='app');window.scrollTo(0,0)}
+function pageMode(mode){$('.page').forEach(x=>x.classList.add('hidden'));const id=({landing:'landingPage',auth:'authPage',app:'appPage',reset:'resetPage',instruction:'instructionPage'})[mode];$('#'+id).classList.remove('hidden');$('#headerLogin').classList.toggle('hidden',mode==='app');$('#headerLogout').classList.toggle('hidden',mode!=='app');$('#desktopLinks').classList.toggle('hidden',mode==='app');document.body.classList.toggle('signed-in',mode==='app');window.scrollTo(0,0)}
 function authTab(mode){S.authMode=mode;$$('[data-auth]').forEach(b=>b.classList.toggle('active',b.dataset.auth===mode));$$('.register-only').forEach(b=>b.classList.toggle('hidden',mode!=='register'));$$('.register-only input').forEach(b=>b.required=mode==='register');$('#authHeading').textContent=mode==='register'?'Создать кабинет':'Войти в кабинет';$('#authSub').textContent=mode==='register'?'После регистрации вы получите уникальный UID.':'Используйте электронную почту и пароль.';$('#authAction').textContent=mode==='register'?'Зарегистрироваться →':'Войти →';$('#authError').classList.add('hidden');$('#authForm').elements.password.autocomplete=mode==='register'?'new-password':'current-password'}
 function showAuth(mode='login'){authTab(mode);pageMode('auth')}
+function showInstructions(){
+  pageMode('instruction');
+  const first = document.querySelector('#instructionPage .instruction-item');
+  if(first) first.open = true;
+}
+function closeInstructions(){
+  if(S.me){pageMode('app');go(S.page || 'overview',false)}
+  else pageMode('landing');
+}
 async function loginRefresh(){const d=await api('/api/me');if(!d.authenticated){S.me=null;S.csrf='';pageMode('landing');return false}S.me=d;S.csrf=d.csrf;$('#welcome').textContent='Здравствуйте, '+d.name;$('#accountMeta').textContent=d.email;$('#uidLabel').textContent=d.uid;$('#mainBalance').textContent=amount(d.balance);$('#mainAvailable').textContent=amount(d.available)+' USDT';$('#lockedBalance').textContent=amount(d.locked)+' USDT';$('#walletBalance').textContent=amount(d.balance)+' USDT';$('#walletAvailable').textContent=amount(d.available)+' USDT';$('#walletLocked').textContent=amount(d.locked)+' USDT';$('#todayPnl').textContent=amount(d.earnings_today)+' USD';$('#totalPnl').textContent=amount(d.earnings_total)+' USD';$('#todayPnl').className=Number(d.earnings_today)>=0?'positive':'negative';$('#totalPnl').className=Number(d.earnings_total)>=0?'positive':'negative';$('#profileUid').textContent=d.uid;$('#profilePhone').textContent=d.phone||'Не задан';$('#profileEmail').textContent=d.email;$('#adminSide').classList.toggle('hidden',!d.admin);
 const brokerConnected=Boolean(S.config?.trading_account_connected);
 $('#accountConnectionStatus').textContent=brokerConnected
@@ -44,6 +53,9 @@ async function ready(){
   if(location.search.includes('reset=')){pageMode('reset');return}
   await loginRefresh();
 }
+$('#headerInstructions').onclick=showInstructions;
+$('#sideInstructions').onclick=showInstructions;
+$('#instructionBack').onclick=closeInstructions;
 $('#headerLogin').onclick=()=>showAuth('login');$('#heroSignup').onclick=()=>showAuth('register');$('#heroFunding').onclick=()=>{S.page='wallet';if(S.me){go('wallet');walletTab('deposit')}else showAuth('login')};$('#headerLogout').onclick=logout;$('#profileLogout').onclick=logout;$('#brand').onclick=e=>{e.preventDefault();if(S.me){go('overview')}else pageMode('landing')};$('#copyUID').onclick=async()=>{await navigator.clipboard?.writeText(S.me?.uid||'');notice('UID скопирован')};
 $$('[data-auth]').forEach(b=>b.onclick=()=>authTab(b.dataset.auth));
 $('#authForm').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);const d={email:f.get('email'),password:f.get('password')};if(S.authMode==='register'){d.name=f.get('name');d.phone=f.get('phone');d.withdraw_password=f.get('withdraw_password')}try{const r=await api('/api/'+S.authMode,d);S.csrf=r.csrf;await loginRefresh();notice(S.authMode==='register'?'Аккаунт зарегистрирован. Ваш UID указан в кабинете.':'Добро пожаловать!')}catch(err){$('#authError').textContent=err.message;$('#authError').classList.remove('hidden')}};
