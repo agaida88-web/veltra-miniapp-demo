@@ -28,6 +28,10 @@ DB_PATH = os.environ.get('SITE_DB_PATH', str(ROOT / 'data.sqlite3'))
 HOST = os.environ.get('SITE_HOST', '127.0.0.1')
 PORT = int(os.environ.get('SITE_PORT') or os.environ.get('PORT', '8080'))
 RECEIVE_ADDRESS = os.environ.get('TRON_RECEIVE_ADDRESS','').strip()
+# Hard stop for public preview. A separate, reviewed production integration is
+# required before client funds can be received or withdrawn.
+PRODUCTION_FUNDS_CONNECTED = False
+PRODUCTION_BROKER_CONNECTED = False
 PAYOUT_ADDRESS = os.environ.get('TRON_PAYOUT_ADDRESS', RECEIVE_ADDRESS).strip()
 TRON_API = os.environ.get('TRON_API_URL', 'https://api.trongrid.io').rstrip('/')
 TRON_KEY = os.environ.get('TRON_API_KEY', '').strip()
@@ -75,7 +79,7 @@ def telegram_handle_update(update):
         return
     telegram_call('sendMessage', {
         'chat_id': chat['id'],
-        'text': 'Добро пожаловать в VELTRA! 🚀\\n\\nОткройте демонстрационное приложение кнопкой ниже. Реальные переводы и торговля здесь не подключены.',
+        'text': 'Добро пожаловать в VELTRA! 🚀\\n\\nЛичный кабинет, история операций и рыночная аналитика доступны через приложение. Торговый счёт и приём реальных переводов пока не подключены.',
         'reply_markup': {
             'inline_keyboard': [[{
                 'text': '🚀 Открыть VELTRA',
@@ -304,7 +308,12 @@ class Handler(BaseHTTPRequestHandler):
             staticroot=(ROOT/'static').resolve();p=(staticroot/safe).resolve()
             if not p.is_relative_to(staticroot) or not p.is_file():return self.send_json({'error':'Не найдено'},404)
             raw=p.read_bytes();self.send_response(200); self.send_header('Content-Type',(mimetypes.guess_type(str(p))[0] or 'application/octet-stream')+('; charset=utf-8' if p.suffix in ('.html','.css','.js','.json') else ''));self.send_header('Content-Length',str(len(raw)));self.send_header('X-Content-Type-Options','nosniff');self.send_header('Cache-Control','public, max-age=300' if p.suffix in ('.png','.css','.js') else 'no-store');self.send_header('Referrer-Policy','no-referrer');self.end_headers();self.wfile.write(raw);return
-        if method=='GET' and path=='/api/config':return self.send_json({'receive_address':RECEIVE_ADDRESS,'deposits_enabled':bool(RECEIVE_ADDRESS),'min_confirmations':MIN_CONFIRMATIONS,'network':'TRON (TRC-20)','token':'USDT','demo':True})
+        if method=='GET' and path=='/api/config':return self.send_json({'receive_address':RECEIVE_ADDRESS if PRODUCTION_FUNDS_CONNECTED else '',
+            'deposits_enabled':bool(PRODUCTION_FUNDS_CONNECTED and RECEIVE_ADDRESS),
+            'withdrawals_enabled':bool(PRODUCTION_FUNDS_CONNECTED),
+            'trading_account_connected':bool(PRODUCTION_BROKER_CONNECTED),
+            'account_provider':None,'account_mode':'internal_ledger_only',
+            'min_confirmations':MIN_CONFIRMATIONS,'network':'TRON (TRC-20)','token':'USDT'})
         with DB_LOCK, conn() as c:
             u=self.auth(c)
             if method=='POST' and path in ('/api/register','/api/login'):
@@ -352,6 +361,7 @@ class Handler(BaseHTTPRequestHandler):
                 led=[dict(x) for x in c.execute('SELECT kind,amount_micro,txid,created_at FROM ledger WHERE user_id=? ORDER BY id DESC LIMIT 100',(u['id'],)).fetchall()]
                 return self.send_json({'deposits':deps,'withdrawals':wd,'ledger':led})
             if method=='POST' and path=='/api/deposits':
+                if not PRODUCTION_FUNDS_CONNECTED:raise ValueError('Приём USDT пока не подключён. Не отправляйте средства.')
                 if not RECEIVE_ADDRESS:raise ValueError('Оператор ещё не настроил TRC-20-кошелёк')
                 tron_decode(RECEIVE_ADDRESS)
                 data=self.load_json();base=parse_amount(data.get('amount'))
@@ -367,6 +377,7 @@ class Handler(BaseHTTPRequestHandler):
                 add_audit(c,u['id'],'deposit_created',{'id':cur.lastrowid,'micro':exact})
                 return self.send_json({'id':cur.lastrowid,'amount':amt(exact),'receive_address':RECEIVE_ADDRESS,'expires':now+86400})
             if method=='POST' and re.fullmatch('/api/deposits/\\d+/txid',path):
+                if not PRODUCTION_FUNDS_CONNECTED:raise ValueError('Приём USDT пока не подключён')
                 did=int(path.split('/')[3]);d=self.load_json();txid=str(d.get('txid','')).strip().lower()
                 if not re.fullmatch('[a-f0-9]{64}',txid):raise ValueError('TXID должен содержать 64 шестнадцатеричных символа')
                 row=c.execute('SELECT * FROM deposits WHERE id=? AND user_id=?',(did,u['id'])).fetchone()
@@ -375,6 +386,7 @@ class Handler(BaseHTTPRequestHandler):
                 c.execute('UPDATE deposits SET txid=?,status=? WHERE id=?',(txid,'awaiting_review',did))
                 return self.send_json({'ok':True,'status':'awaiting_review'})
             if method=='POST' and path=='/api/withdrawals':
+                if not PRODUCTION_FUNDS_CONNECTED:raise ValueError('Реальный вывод пока не подключён')
                 data=self.load_json();n=parse_amount(data.get('amount'));dest=str(data.get('address','')).strip();tron_decode(dest)
                 p=c.execute('SELECT withdraw_hash FROM users WHERE id=?',(u['id'],)).fetchone()
                 if not p['withdraw_hash'] or not password_check(str(data.get('withdraw_password','')),p['withdraw_hash']):raise PermissionError('Неверный пароль подтверждения вывода')
@@ -464,6 +476,7 @@ class Handler(BaseHTTPRequestHandler):
                 audits=[dict(r) for r in c.execute('SELECT action,details,created_at FROM audits ORDER BY id DESC LIMIT 60').fetchall()]
                 return self.send_json({'users':users,'deposits':deps,'withdrawals':wds,'audits':audits,'manual_corrections_enabled':ENABLE_CORRECTIONS})
             if method=='POST' and re.fullmatch('/api/admin/deposits/\\d+/verify',path):
+                if not PRODUCTION_FUNDS_CONNECTED:raise ValueError('Приём USDT пока не подключён')
                 did=int(path.split('/')[4]);r=c.execute('SELECT * FROM deposits WHERE id=?',(did,)).fetchone()
                 if not r or r['status']!='awaiting_review' or not r['txid']:raise ValueError('Заявка не готова к проверке')
                 if int(time.time())>r['expires']+3600: raise ValueError('Заявка просрочена; требуется отдельное урегулирование')
@@ -481,6 +494,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not r or r['status']!='pending':raise ValueError('Заявка уже обработана')
                 c.execute('UPDATE withdrawals SET status=?,updated_at=? WHERE id=?',('rejected',int(time.time()),wid));add_audit(c,u['id'],'withdraw_rejected',{'id':wid});c.execute('COMMIT');return self.send_json({'ok':True})
             if method=='POST' and re.fullmatch('/api/admin/withdrawals/\\d+/confirm',path):
+                if not PRODUCTION_FUNDS_CONNECTED:raise ValueError('Реальный вывод пока не подключён')
                 wid=int(path.split('/')[4]);data=self.load_json();txid=str(data.get('txid','')).lower().strip()
                 r=c.execute('SELECT * FROM withdrawals WHERE id=?',(wid,)).fetchone()
                 if not r or r['status']!='pending':raise ValueError('Нет ожидающей заявки')
