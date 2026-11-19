@@ -17,3 +17,5 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Verify JavaScript syntax
         run: node --check static/app.js
+      - name: Verify public page navigation
+        run: node tests/navigation.test.cjs
