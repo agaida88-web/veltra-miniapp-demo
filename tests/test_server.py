@@ -30,6 +30,25 @@ class TestServer(unittest.TestCase):
         for element_id in ('accountConnectionStatus','profileBroker','profileTradingAccount',
                            'profileFundingStatus','depositAvailability'):
             self.assertIn('id="'+element_id+'"', markup)
+    def test_instruction_menu_and_risk_disclosures(self):
+        root=Path(__file__).resolve().parents[1]/'static'
+        markup=(root/'index.html').read_text(encoding='utf-8')
+        script=(root/'app.js').read_text(encoding='utf-8')
+        css=(root/'instructions.css').read_text(encoding='utf-8')
+        self.assertIn('id="instructionPage"',markup)
+        self.assertIn('id="headerInstructions"',markup)
+        self.assertIn('id="sideInstructions"',markup)
+        self.assertIn('id="instructionBack"',markup)
+        self.assertEqual(markup.count('class="instruction-item"'),6)
+        self.assertIn('XAU/AUD',markup)
+        self.assertIn('2,5%',markup)
+        self.assertIn('не подтверждённая или гарантированная прибыль',markup)
+        self.assertIn('не доказывает, что проект не имеет признаков финансовой пирамиды',markup)
+        self.assertIn('с 02:00 до 23:59',markup)
+        self.assertIn('10 дней',markup)
+        self.assertIn('function showInstructions()',script)
+        self.assertIn('function closeInstructions()',script)
+        self.assertIn('instruction-hero',css)
     def test_password(self):
         p=server.hash_password('a_very_good_password_!')
         self.assertTrue(server.password_check('a_very_good_password_!',p))
