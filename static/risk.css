@@ -1,0 +1,18 @@
+/* VELTRA — prominent risk disclosures and actual account state. */
+.risk-banner{width:100%;background:#122438;border-bottom:1px solid rgba(150,186,218,.25);padding:14px clamp(14px,3vw,32px) 13px;text-align:center;color:#e7f2fa;position:relative;z-index:20;box-shadow:0 7px 28px rgba(0,0,0,.17)}
+.risk-banner p{margin:0 auto;max-width:1120px;line-height:1.55}
+.risk-banner-main{font-size:clamp(13px,1.5vw,16px);font-weight:800;letter-spacing:.06px}
+.risk-banner-extra{font-size:clamp(12px,1.3vw,14px);padding-top:6px;color:#c3d2e2}
+.risk-banner-extra strong{color:#ffdc93;font-weight:850}
+.funding-status-bar{text-align:center;font-size:12px;color:#ffe4bd;background:#513525;padding:8px 15px;line-height:1.5;border-bottom:1px solid rgba(255,199,152,.28)}
+.hero-status{font-size:12px!important;line-height:1.55!important;color:#a9c7d6!important;margin-top:14px!important;max-width:455px}
+.account-status-card{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:19px;padding:20px 22px;border:1px solid #2c4b62;border-radius:20px;background:linear-gradient(135deg,#132f42,#102337 75%);box-shadow:0 12px 32px rgba(2,11,25,.18)}
+.account-status-card .account-status-kicker{font-size:10px;font-weight:850;letter-spacing:1.7px;color:#73decf}
+.account-status-card h2{font-size:19px;line-height:1.3;color:#f4f9ff;margin:6px 0 4px}
+.account-status-card p{font-size:12px;line-height:1.55;color:#bfcede;margin:0;max-width:410px}
+.account-status-card .button{white-space:nowrap}
+.account-funding-guide{border:1px solid rgba(32,195,178,.27);background:#102b38;border-radius:15px;padding:15px 17px;margin:0 0 16px;color:#b9d7e3}
+.account-funding-guide strong{display:block;color:#76e4d5;font-size:13px;margin-bottom:7px}
+.account-funding-guide p{font-size:12px;line-height:1.6;margin:0}
+.account-info-note{font-size:12px;line-height:1.7;color:#a9b8cf;margin:15px 0 0}
+@media(max-width:650px){.risk-banner{padding:11px 13px}.risk-banner-main{font-size:12px;line-height:1.45!important}.risk-banner-extra{font-size:11px;line-height:1.4!important}.account-status-card{flex-direction:column;align-items:stretch;padding:17px}.account-status-card .button{width:100%}}
