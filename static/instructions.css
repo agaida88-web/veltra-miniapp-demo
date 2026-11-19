@@ -1,0 +1,21 @@
+/* VELTRA: instructions and disclosure page */
+.instruction-trigger{border:1px solid rgba(46,220,209,.36)!important;color:#b9f2ed!important;white-space:nowrap}
+.instruction-trigger:hover{background:rgba(25,192,181,.09)!important}
+.instruction-page{padding:44px 0 86px;max-width:910px;margin-inline:auto}
+.instruction-hero{border:1px solid rgba(46,220,209,.25);border-radius:25px;background:linear-gradient(135deg,#14283d,#0e1b30);padding:30px 34px;margin-bottom:22px}
+.instruction-hero h1{font-size:clamp(29px,4vw,45px);margin:5px 0 15px;letter-spacing:-.045em}
+.instruction-hero p{font-size:14px;max-width:670px;margin:0;line-height:1.75;color:#bbcae0}
+.instruction-menu{display:grid;gap:10px}
+.instruction-item{background:#101c2e;border:1px solid #2b3d57;border-radius:16px;overflow:hidden}
+.instruction-item[open]{border-color:#3c827e;background:#102537}
+.instruction-item summary{list-style:none;display:flex;align-items:center;gap:14px;cursor:pointer;min-height:70px;padding:16px 22px;color:#f1f7fc;font-size:15px;line-height:1.4;font-weight:800}
+.instruction-item summary::-webkit-details-marker{display:none}
+.instruction-item summary span{flex:none;border-radius:11px;background:#173748;color:#74e0d7;padding:7px 9px;font-size:11px;letter-spacing:.08em}
+.instruction-item summary::after{content:'＋';font-size:22px;font-weight:500;margin-left:auto;color:#6ad7cb}
+.instruction-item[open] summary::after{content:'−'}
+.instruction-item summary:focus-visible{outline:2px solid #72e3d3;outline-offset:-4px}
+.instruction-answer{padding:0 22px 21px 62px;color:#c6d2e3;font-size:13px;line-height:1.9}
+.instruction-answer strong{color:#ffdb97}
+.instruction-footnote{font-size:12px;line-height:1.8;color:#aab9d0;margin:23px 0}
+.instruction-back{min-width:190px}
+@media(max-width:600px){.instruction-trigger{font-size:11px!important;padding:9px 10px!important}.instruction-page{padding:19px 0 85px}.instruction-hero{padding:21px 19px;border-radius:18px}.instruction-item summary{font-size:13px;min-height:64px;padding:13px 14px;gap:10px}.instruction-answer{padding:0 15px 17px;font-size:12px}.instruction-item summary span{padding:6px 7px}.instruction-back{width:100%}}
