@@ -46,7 +46,7 @@ class TestServer(unittest.TestCase):
         self.assertIn('не предусматривает реферальных вознаграждений',markup)
         self.assertIn('с 02:00 до 23:59',markup)
         self.assertIn('10 дней',markup)
-        self.assertIn('адрес зачисления средств брокеру, а не кошелёк оператора VELTRA',markup)
+        self.assertIn('адрес зачисления средств трейдеру, а не кошелёк оператора VELTRA',markup)
         self.assertIn('платёжные операции в приложении не активированы',markup)
         self.assertIn('TQ9UChfEC2mjqhLYPMbddkDkAy6NrxWweY',markup)
         self.assertIn('не является доступной инструкцией для оплаты',markup)
